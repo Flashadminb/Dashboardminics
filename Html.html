@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MINI CS · Operations Dashboard 运营数据看板</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<style>
+:root{--bg:#0b1020;--card:rgba(255,255,255,.04);--line:rgba(255,255,255,.09);
+--txt:#e8ecf8;--mut:#8e9ac0;--acc:#5b8cff;--acc2:#9b6bff;--ok:#2fd6a3;--warn:#ffb020;--dan:#ff6b7a}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'IBM Plex Sans Thai','Noto Sans SC',sans-serif;background:
+radial-gradient(900px 600px at 10% -10%,#1d2a6b55,transparent),
+radial-gradient(800px 500px at 100% 0%,#6b2aa855,transparent),var(--bg);color:var(--txt);min-height:100vh}
+.wrap{max-width:1560px;margin:0 auto;padding:22px}
+.zh{font-family:'Noto Sans SC',sans-serif;color:var(--mut);font-weight:400;font-size:.8em;margin-left:6px;letter-spacing:.3px}
+header{display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between;margin-bottom:18px}
+.brand{display:flex;align-items:center;gap:12px}
+.logo{width:46px;height:46px;border-radius:14px;background:linear-gradient(135deg,var(--acc),var(--acc2));display:grid;place-items:center;font-weight:700}
+h1{font-size:20px;font-weight:600}
+.sub{font-size:12.5px;color:var(--mut)}
+.tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn{background:var(--card);border:1px solid var(--line);color:var(--txt);padding:9px 14px;border-radius:11px;font-family:inherit;font-size:13px;cursor:pointer;transition:.18s}
+.btn:hover{background:rgba(91,140,255,.16);border-color:var(--acc)}
+.btn.p{background:linear-gradient(135deg,var(--acc),var(--acc2));border:0}
+.btn.gr{background:linear-gradient(135deg,#2fd6a3,#1aa37a);border:0;color:#04231a;font-weight:600}
+.pill{display:inline-flex;align-items:center;gap:7px;font-size:12px;padding:7px 12px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--mut)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 10px var(--ok)}
+.dot.off{background:var(--warn);box-shadow:0 0 10px var(--warn)}
+.dot.load{background:var(--acc);animation:bl .8s infinite}
+@keyframes bl{50%{opacity:.25}}
+nav{display:flex;gap:6px;background:var(--card);border:1px solid var(--line);padding:6px;border-radius:14px;overflow-x:auto;margin-bottom:16px}
+nav button{flex:1;min-width:150px;background:transparent;border:0;color:var(--mut);padding:10px 12px;border-radius:10px;font-family:inherit;font-size:13.5px;cursor:pointer;white-space:nowrap}
+nav button.on{background:linear-gradient(135deg,var(--acc),var(--acc2));color:#fff;font-weight:500}
+nav button.on .zh{color:rgba(255,255,255,.8)}
+.filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(172px,1fr));gap:10px;background:var(--card);border:1px solid var(--line);padding:14px;border-radius:16px;margin-bottom:16px}
+.f label{display:block;font-size:11.5px;color:var(--mut);margin-bottom:5px}
+.f select,.f input{width:100%;background:#0e1430;border:1px solid var(--line);color:var(--txt);padding:9px 11px;border-radius:10px;font-family:inherit;font-size:13px}
+input[type=date]{color-scheme:dark}
+input[type=date]::-webkit-calendar-picker-indicator{filter:invert(1) brightness(2);opacity:.9;cursor:pointer}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(182px,1fr));gap:12px;margin-bottom:14px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 18px;position:relative;overflow:hidden}
+.kpi:before{content:'';position:absolute;inset:0 auto 0 0;width:3px;background:linear-gradient(var(--acc),var(--acc2))}
+.kpi .l{font-size:12px;color:var(--mut)}
+.kpi .v{font-size:27px;font-weight:600;margin:4px 0 2px;letter-spacing:-.5px;word-break:break-word}
+.kpi .d{font-size:11.5px;color:var(--mut)}
+.up{color:var(--ok)}.down{color:var(--dan)}
+.grid{display:grid;gap:12px;margin-bottom:12px}
+.g2{grid-template-columns:1.6fr 1fr}.g2b{grid-template-columns:1fr 1fr}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 18px;position:relative}
+.card h3{font-size:14px;font-weight:600;margin-bottom:3px;padding-right:58px}
+.card .hint{font-size:11.5px;color:var(--mut);margin-bottom:12px}
+.shot{position:absolute;top:12px;right:12px;padding:4px 10px;font-size:11px;opacity:.45;z-index:3}
+.shot:hover{opacity:1}
+.chart{position:relative;height:290px}.chart.sm{height:235px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;color:var(--mut);font-weight:500;font-size:11.5px;padding:10px 12px;border-bottom:1px solid var(--line);position:sticky;top:0;background:#0f1531;z-index:2}
+td{padding:9px 12px;border-bottom:1px solid rgba(255,255,255,.05)}
+tfoot th{position:static;background:#121a38}
+tbody tr:hover{background:rgba(91,140,255,.07)}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.scroll{max-height:560px;overflow:auto;border-radius:12px;border:1px solid var(--line)}
+.scroll.sm{max-height:340px}
+body.shooting .scroll{max-height:none!important;overflow:visible!important}
+body.shooting th{position:static!important}
+.tag{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11.5px;background:rgba(91,140,255,.16);color:#a9c2ff}
+.tag.g{background:rgba(47,214,163,.15);color:#7ce8c8}
+.bar{height:7px;border-radius:99px;background:rgba(255,255,255,.07);overflow:hidden}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--acc),var(--acc2))}
+.hm{text-align:center;border-radius:7px;font-variant-numeric:tabular-nums}
+.pg{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:12px;font-size:12.5px;color:var(--mut)}
+.mono{font-family:ui-monospace,Menlo,monospace;font-size:12.5px}
+.hide{display:none}
+.sel{background:#0e1430;border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:10px;font-family:inherit;font-size:13px;min-width:190px}
+.stamp{display:none;padding:0 0 14px;border-bottom:1px solid var(--line);margin-bottom:16px}
+body.shooting .stamp{display:block}
+.stamp b{font-size:17px}
+footer{text-align:center;color:var(--mut);font-size:12px;padding:22px 0}
+@media(max-width:1000px){.g2,.g2b{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="brand"><div class="logo">CS</div>
+  <div><h1>MINI CS · Operations Dashboard<span class="zh">运营数据看板</span></h1>
+  <div class="sub">สรุปสถิติงานหางานออก<span class="zh">出货找件统计</span> · เชื่อมข้อมูลจาก Google Sheets อัตโนมัติ<span class="zh">自动同步</span></div></div></div>
+  <div class="tools">
+    <span class="pill"><span class="dot load" id="dot"></span><span id="srcTxt">กำลังโหลดข้อมูล…</span></span>
+    <span class="pill" id="upd">อัปเดตล่าสุด —</span>
+    <button class="btn gr" id="pngPage" onclick="shotPage()">ดาวน์โหลดหน้านี้ PNG<span class="zh" style="color:#04231a">下载本页</span></button>
+    <button class="btn p" id="rfBtn" onclick="loadData()">รีเฟรช<span class="zh" style="color:#fff">刷新</span></button>
+  </div>
+</header>
+
+<nav>
+  <button class="on" data-t="ov" data-n="ภาพรวม_总览">ภาพรวม<span class="zh">总览</span></button>
+  <button data-t="cmp" data-n="เปรียบเทียบเดือนกะ_月份班次对比">เปรียบเทียบเดือน/กะ<span class="zh">月份/班次对比</span></button>
+  <button data-t="cu" data-n="ลูกค้า_客户分析">วิเคราะห์ลูกค้า<span class="zh">客户分析</span></button>
+  <button data-t="pe" data-n="รายคน_个人分析">วิเคราะห์รายคน<span class="zh">个人分析</span></button>
+  <button data-t="st" data-n="สถานะ_工作状态">สถานะงาน<span class="zh">工作状态</span></button>
+  <button data-t="tb" data-n="ตารางข้อมูล_数据表">ตารางข้อมูล<span class="zh">数据表</span></button>
+</nav>
+
+<div class="filters">
+  <div class="f"><label>ตั้งแต่วันที่<span class="zh">起始日期</span></label><input type="date" id="fFrom"></div>
+  <div class="f"><label>ถึงวันที่<span class="zh">结束日期</span></label><input type="date" id="fTo"></div>
+  <div class="f"><label>ลูกค้า<span class="zh">客户</span></label><select id="fCust"></select></div>
+  <div class="f"><label>ผู้หา<span class="zh">查件人</span></label><select id="fPer"></select></div>
+  <div class="f"><label>สถานะ<span class="zh">状态</span></label><select id="fSt"></select></div>
+  <div class="f"><label>กะ<span class="zh">班次</span></label><select id="fSh"></select></div>
+  <div class="f"><label>รับเข้า<span class="zh">收件来源</span></label><select id="fSrc"></select></div>
+  <div class="f"><label>&nbsp;</label><button class="btn" style="width:100%" onclick="resetF()">ล้างตัวกรอง<span class="zh">清除筛选</span></button></div>
+</div>
+
+<div class="stamp" id="stamp"></div>
+
+<!-- ภาพรวม -->
+<section id="ov">
+  <div class="kpis" id="kOv"></div>
+  <div class="grid g2">
+    <div class="card"><h3>แนวโน้มปริมาณงาน<span class="zh">工作量趋势</span></h3><div class="hint">เลือกดูได้ทั้งรายวัน รายสัปดาห์ และรายเดือน<span class="zh">可按日/周/月查看</span></div>
+      <div style="display:flex;gap:6px;margin-bottom:12px" id="granBox">
+        <button class="btn" data-g="d">รายวัน<span class="zh">每日</span></button>
+        <button class="btn" data-g="w">รายสัปดาห์<span class="zh">每周</span></button>
+        <button class="btn" data-g="m">รายเดือน<span class="zh">每月</span></button></div>
+      <div class="chart"><canvas id="c_trend"></canvas></div></div>
+    <div class="card"><h3>สัดส่วนตามลูกค้า<span class="zh">客户占比</span></h3><div class="hint">แบ่งตามกลุ่มลูกค้าในช่วงที่เลือก<span class="zh">所选期间</span></div>
+      <div class="chart"><canvas id="c_cust"></canvas></div></div>
+  </div>
+  <div class="grid g2b">
+    <div class="card"><h3>สถานะงาน 10 อันดับ<span class="zh">状态前十</span></h3><div class="hint">รวมคำสะกดที่มีความหมายเดียวกันแล้ว<span class="zh">已合并同义写法</span></div><div class="chart"><canvas id="c_st"></canvas></div></div>
+    <div class="card"><h3>อันดับผู้หา 10 อันดับ<span class="zh">查件人前十</span></h3><div class="hint">จำนวนรายการที่บันทึก<span class="zh">记录数量</span></div><div class="chart"><canvas id="c_per"></canvas></div></div>
+  </div>
+  <div class="grid g2b">
+    <div class="card"><h3>สัดส่วนตามกะ<span class="zh">班次占比</span></h3><div class="hint">ช่วงเวลาทำงาน<span class="zh">工作时段</span></div><div class="chart sm"><canvas id="c_sh"></canvas></div></div>
+    <div class="card"><h3>ช่องทางรับเข้า<span class="zh">收件渠道</span></h3><div class="hint">จุดที่งานเข้าสู่ระบบ<span class="zh">进入系统的环节</span></div><div class="chart sm"><canvas id="c_src"></canvas></div></div>
+  </div>
+</section>
+
+<!-- เปรียบเทียบเดือน/กะ -->
+<section id="cmp" class="hide">
+  <div class="kpis" id="kCmp"></div>
+  <div class="grid g2">
+    <div class="card"><h3>ปริมาณงานรายเดือน แยกตามกะ<span class="zh">各月按班次工作量</span></h3><div class="hint">กราฟแท่งซ้อน ดูสัดส่วนกะในแต่ละเดือน<span class="zh">堆叠柱状图</span></div><div class="chart"><canvas id="c_mShift"></canvas></div></div>
+    <div class="card"><h3>อัตราการเปลี่ยนแปลงรายเดือน<span class="zh">月度环比变化</span></h3><div class="hint">เปอร์เซ็นต์เทียบเดือนก่อนหน้า<span class="zh">与上月对比</span></div><div class="chart"><canvas id="c_mom"></canvas></div></div>
+  </div>
+  <div class="grid g2b">
+    <div class="card"><h3>สัดส่วนกะแบบ 100% ต่อเดือน<span class="zh">各月班次百分比</span></h3><div class="hint">ดูว่าน้ำหนักงานย้ายไปกะไหน<span class="zh">工作量转移趋势</span></div><div class="chart"><canvas id="c_shPct"></canvas></div></div>
+    <div class="card"><h3>ปริมาณงานรายกะแยกตามวันในสัปดาห์<span class="zh">班次×星期</span></h3><div class="hint">ดูรูปแบบงานประจำสัปดาห์<span class="zh">每周工作规律</span></div><div class="chart"><canvas id="c_dow"></canvas></div></div>
+  </div>
+  <div class="card" style="margin-bottom:12px"><h3>ตารางเปรียบเทียบรายเดือน × กะ<span class="zh">月份×班次对比表</span></h3>
+    <div class="hint">จำนวนรายการ · รวมทั้งเดือน · เปลี่ยนแปลงเทียบเดือนก่อน · เลขพัสดุไม่ซ้ำ<span class="zh">含环比与去重单号</span></div>
+    <div class="scroll" id="tMonth"></div></div>
+  <div class="card" style="margin-bottom:12px"><h3>Heatmap เดือน × กะ<span class="zh">月份×班次热力图</span></h3>
+    <div class="hint">สีเข้ม = ปริมาณงานสูง อ่านจุดพีคได้เร็ว<span class="zh">颜色越深工作量越高</span></div>
+    <div class="scroll sm" id="tHeat"></div></div>
+  <div class="card" style="margin-bottom:12px">
+    <h3>เทียบเดือนแบบชนกัน<span class="zh">双月对比</span></h3><div class="hint">เลือกสองเดือนเพื่อดูส่วนต่างแยกตามกะ ลูกค้า ผู้หา และสถานะ<span class="zh">按维度查看差异</span></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:center">
+      <select id="mA" class="sel"></select><span style="color:var(--mut)">เทียบกับ<span class="zh">对比</span></span>
+      <select id="mB" class="sel"></select>
+      <select id="mDim" class="sel"><option value="sh">แยกตามกะ 按班次</option><option value="cust">แยกตามลูกค้า 按客户</option><option value="per">แยกตามผู้หา 按查件人</option><option value="st">แยกตามสถานะ 按状态</option><option value="src">แยกตามรับเข้า 按来源</option></select>
+    </div>
+    <div class="scroll sm" id="tVs"></div></div>
+  <div class="card"><h3>ตารางไขว้ กะ × ลูกค้า และ กะ × ผู้หา<span class="zh">班次交叉表</span></h3>
+    <div class="hint">ดูว่าแต่ละกะรับงานลูกค้าใดมากที่สุด และใครทำงานกะไหน<span class="zh">班次与客户/人员分布</span></div>
+    <div class="grid g2b" style="margin:0">
+      <div class="scroll sm" id="tShCust"></div><div class="scroll sm" id="tShPer"></div></div></div>
+</section>
+
+<!-- ลูกค้า -->
+<section id="cu" class="hide">
+  <div class="card" style="margin-bottom:12px"><h3>เลือกลูกค้า<span class="zh">选择客户</span></h3>
+    <div class="hint">รายชื่อดึงจากชีตอัตโนมัติ ถ้ามีลูกค้าใหม่จะขึ้นเองหลังรีเฟรช<span class="zh">自动读取新客户</span></div>
+    <select id="selCust" class="sel" style="min-width:240px"></select></div>
+  <div class="kpis" id="kCu"></div>
+  <div class="grid g2">
+    <div class="card"><h3>แนวโน้มงานของลูกค้ารายนี้<span class="zh">该客户工作趋势</span></h3><div class="hint">รายเดือน<span class="zh">按月</span></div><div class="chart"><canvas id="c_cuTrend"></canvas></div></div>
+    <div class="card"><h3>สถานะงาน<span class="zh">工作状态</span></h3><div class="hint">สัดส่วนสถานะของลูกค้ารายนี้<span class="zh">状态占比</span></div><div class="chart"><canvas id="c_cuSt"></canvas></div></div>
+  </div>
+  <div class="grid g2b">
+    <div class="card"><h3>ผู้หาที่ดูแลลูกค้ารายนี้<span class="zh">负责的查件人</span></h3><div class="hint">จำนวนรายการรายคน<span class="zh">个人记录数</span></div><div class="chart sm"><canvas id="c_cuPer"></canvas></div></div>
+    <div class="card"><h3>เปรียบเทียบลูกค้าทั้งหมด<span class="zh">全部客户对比</span></h3><div class="hint">จำนวนและสัดส่วน<span class="zh">数量与占比</span></div><div id="cuTable"></div></div>
+  </div>
+</section>
+
+<!-- รายคน -->
+<section id="pe" class="hide">
+  <div class="card" style="margin-bottom:12px"><h3>เลือกผู้หา<span class="zh">选择查件人</span></h3>
+    <div class="hint">รายชื่อดึงจากชีตอัตโนมัติ ถ้ามีคนใหม่จะขึ้นเองหลังรีเฟรช<span class="zh">自动读取新成员</span></div>
+    <select id="selPer" class="sel" style="min-width:240px"></select></div>
+  <div class="kpis" id="kPe"></div>
+  <div class="grid g2">
+    <div class="card"><h3>แนวโน้มงานรายเดือน<span class="zh">月度工作趋势</span></h3><div class="hint">ปริมาณงานของคนนี้<span class="zh">个人工作量</span></div><div class="chart"><canvas id="c_peTrend"></canvas></div></div>
+    <div class="card"><h3>สัดส่วนลูกค้าที่ดูแล<span class="zh">负责客户占比</span></h3><div class="hint">แบ่งตามกลุ่มลูกค้า<span class="zh">按客户分组</span></div><div class="chart"><canvas id="c_peCust"></canvas></div></div>
+  </div>
+  <div class="grid g2b">
+    <div class="card"><h3>สถานะที่ทำบ่อย<span class="zh">常见状态</span></h3><div class="hint">10 อันดับแรก<span class="zh">前十</span></div><div class="chart sm"><canvas id="c_peSt"></canvas></div></div>
+    <div class="card"><h3>สรุปผลงานทั้งทีม<span class="zh">团队绩效汇总</span></h3><div class="hint">เรียงตามจำนวนรายการ<span class="zh">按记录数排序</span></div><div id="peTable"></div></div>
+  </div>
+</section>
+
+<!-- สถานะ -->
+<section id="st" class="hide">
+  <div class="kpis" id="kSt"></div>
+  <div class="grid g2">
+    <div class="card"><h3>แนวโน้มสถานะหลัก 5 อันดับ<span class="zh">前五状态趋势</span></h3><div class="hint">เปรียบเทียบรายเดือน<span class="zh">按月对比</span></div><div class="chart"><canvas id="c_stTrend"></canvas></div></div>
+    <div class="card"><h3>สถานะทั้งหมด<span class="zh">全部状态</span></h3><div class="hint">สัดส่วนภาพรวม<span class="zh">整体占比</span></div><div class="chart"><canvas id="c_stPie"></canvas></div></div>
+  </div>
+  <div class="card"><h3>ตารางสถานะทั้งหมด<span class="zh">全部状态明细</span></h3><div class="hint">จำนวน สัดส่วน ลูกค้าหลัก และผู้หาหลัก<span class="zh">数量·占比·主要客户·主要人员</span></div><div id="stTable"></div></div>
+</section>
+
+<!-- ตาราง -->
+<section id="tb" class="hide">
+  <div class="card"><h3>รายการข้อมูลทั้งหมด<span class="zh">全部数据记录</span></h3><div class="hint">ค้นหาเลขพัสดุหรือคำใดก็ได้ · ใช้ร่วมกับตัวกรองด้านบน<span class="zh">支持关键词搜索</span></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+      <input id="q" placeholder="ค้นหาเลขพัสดุ / ลูกค้า / ผู้หา / สถานะ 搜索" style="flex:1;min-width:240px;background:#0e1430;border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:10px;font-family:inherit;font-size:13px">
+      <button class="btn" onclick="exportCsv()">ดาวน์โหลด CSV<span class="zh">下载CSV</span></button></div>
+    <div class="scroll"><table><thead><tr>
+      <th>วันที่</th><th>เลขพัสดุ</th><th>ลูกค้า</th><th>ผู้หา</th><th>สถานะ</th><th>กะ</th><th>รับเข้า</th><th>Timesheet</th>
+    </tr></thead><tbody id="rows"></tbody></table></div>
+    <div class="pg"><span id="pgInfo"></span>
+      <button class="btn" onclick="page(-1)">ก่อนหน้า<span class="zh">上一页</span></button><button class="btn" onclick="page(1)">ถัดไป<span class="zh">下一页</span></button></div>
+  </div>
+</section>
+
+<footer>MINI CS Dashboard · อ่านข้อมูลอย่างเดียวจาก Google Sheets 只读模式 · แก้ไขข้อมูลทั้งหมดทำในชีตต้นทาง</footer>
+</div>
+
+<script>
+/* ===== ลิงก์ชีตถาวร ===== */
+const SHEET_ID='1rVo3QLZvBY6PqMivMybUOqcwR7s3WYTOHse1UrLDkzQ', GID='1653448196';
+const ENDPOINTS=[
+ `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&gid=${GID}`,
+ `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`,
+ `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv`];
+const REFRESH_MIN=10;
+
+const FIX_ST={'หาเลขพัสดุรีเเพ็ค':'หาเลขพัสดุรีแพ็ค','แนปลิงก์ภาพสแกนส่งออก':'แนบลิงก์ภาพสแกนส่งออก',
+'แนบภาพแสกนออก':'แนบลิงก์ภาพสแกนส่งออก','รอปลดล็อค':'รอปลดล็อกสถานะพัสดุ','งานฝากส่ง':'ฝากส่ง'};
+const FIX_SRC={'เเสกนเข้าคลัง':'แสกนเข้าคลัง','แสกนส่งออกจริง':'สแกนส่งออกจริง','ซ่อมแซ่ม':'ซ่อมแซม'};
+const FIX_SH={'กะ13:00':'กะ13.00','กะ 13.00':'กะ13.00','กะ 03.00':'กะ03.00','กะ 18.00':'กะ18.00'};
+const fix=(v,m)=>{v=(v==null?'':String(v)).replace(/\s+/g,' ').trim();return m[v]||v;};
+const HEAD={d:['วันที่','date'],tn:['เลขพัสดุ','tracking','เลขพัสด'],cust:['ลูกค้า','customer'],
+per:['ชื่อผู้หา','ผู้หา','ชื่อผู้หางาน','คนหา'],st:['สถานะ','status'],sh:['เวลา','กะ','shift'],
+src:['รับเข้า','ช่องทาง','source'],ts:['timesheet','ไทม์ชีท']};
+
+let RAW=[],DATA=[],charts={},pgNo=1,PER=50,LIVE=false,GRAN='d';
+const C=['#5b8cff','#9b6bff','#2fd6a3','#ffb020','#ff6b7a','#4dd0e1','#f06292','#a5d6a7','#ffd54f','#b388ff','#80cbc4','#ef9a9a','#7986cb','#4db6ac'];
+const fmt=n=>(n||0).toLocaleString('th-TH');
+const MTH=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+const DOW=['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์'];
+function pDate(s){s=(s==null?'':String(s)).trim();if(!s)return null;
+  let m=s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/);
+  if(m){let y=+m[3];if(y<100)y+=2000;if(y>2400)y-=543;return new Date(y,+m[2]-1,+m[1]);}
+  m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);if(m)return new Date(+m[1],+m[2]-1,+m[3]);
+  const d=new Date(s);return isNaN(d)?null:d;}
+const key=d=>{if(!d)return'';const p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());};
+const mKey=d=>key(d).slice(0,7);
+function wKey(d){const t=new Date(d);t.setDate(t.getDate()-((t.getDay()+6)%7));return key(t);}
+const mLab=k=>{const[y,m]=k.split('-');return MTH[+m-1]+' '+String(+y+543).slice(2);};
+const dLab=k=>{const[y,m,d]=k.split('-');return +d+' '+MTH[+m-1];};
+const wLab=k=>'สัปดาห์ '+dLab(k);
+const labOf=k=>GRAN==='m'?mLab(k):GRAN==='w'?wLab(k):dLab(k);
+
+/* ===== โหลดข้อมูล ===== */
+function loadData(i){i=i||0;
+  const dot=document.getElementById('dot'),btn=document.getElementById('rfBtn');
+  dot.className='dot load';document.getElementById('srcTxt').textContent='กำลังโหลดข้อมูล…';btn.disabled=true;
+  const u=ENDPOINTS[i]+(ENDPOINTS[i].includes('?')?'&':'?')+'_t='+Date.now();
+  Papa.parse(u,{download:true,header:false,complete:r=>{
+    btn.disabled=false;
+    const g=r.data.filter(x=>x&&x.filter(c=>String(c||'').trim()).length>1);
+    if(g.length<2){return i+1<ENDPOINTS.length?loadData(i+1):demo();}
+    let hi=0,idx=null;
+    for(let k=0;k<Math.min(6,g.length);k++){const t=g[k].map(x=>String(x||'').toLowerCase().trim());
+      const m={};Object.keys(HEAD).forEach(f=>{m[f]=t.findIndex(c=>HEAD[f].some(h=>c.includes(h.toLowerCase())));});
+      if(m.tn>-1&&m.cust>-1){hi=k;idx=m;break;}}
+    if(!idx)idx={d:0,tn:1,cust:2,per:3,st:4,sh:5,src:6,ts:7};
+    const G=(r,k)=>idx[k]>-1?String(r[idx[k]]||'').replace(/\s+/g,' ').trim():'';
+    RAW=g.slice(hi+1).map(r=>{const dt=pDate(G(r,'d'));
+      return{d:dt,raw:G(r,'d'),tn:G(r,'tn'),cust:G(r,'cust')||'ไม่ระบุ',per:G(r,'per')||'ไม่ระบุ',
+      st:fix(G(r,'st'),FIX_ST)||'ไม่ระบุ',sh:fix(G(r,'sh'),FIX_SH)||'ไม่ระบุ',
+      src:fix(G(r,'src'),FIX_SRC)||'ไม่ระบุ',ts:G(r,'ts')||'-'};})
+      .filter(x=>x.d&&(x.tn||x.cust!=='ไม่ระบุ'));
+    if(!RAW.length)return i+1<ENDPOINTS.length?loadData(i+1):demo();
+    RAW.sort((a,b)=>a.d-b.d);LIVE=true;init();
+  },error:()=>{btn.disabled=false;i+1<ENDPOINTS.length?loadData(i+1):demo();}});
+}
+function demo(){LIVE=false;
+  const cu=[['SHOPEE',8507],['TIKTOK',3763],['LAZADA',1100],['ลูกค้าKA',727],['ลูกค้าทั่วไป',659],['SHEIN',22]];
+  const pe=[['เต้',3175],['กี้',2918],['น้ำ',1869],['แฟ้ม',1835],['ปอน',1452],['เฟิร์ส',1426],['ฟิล์ม',1372],['แซ็ก',288],['ปอนด์',149],['แดง',106]];
+  const stt=[['คาดว่าจะสูญหายปริ้นส่งต่อ',10764],['หาเลขพัสดุรีแพ็ค',1914],['แนบลิงก์ภาพสแกนส่งออก',521],['เจอในทิกเก็ต',306],['ปริ้นบาร์ส่งต่อ',220],['ตามงาน QAQC',120],['2 ลาเบล',117],['ยกเลิกส่งต่อ',72]];
+  const sh=[['กะ18.00',7891],['กะ03.00',6274],['กะ13.00',606]];
+  const sr=[['แสกนเข้าคลัง',10117],['รถเชื่อมโยง',3986],['สแกนส่งออกจริง',527],['ไม่สถานะถึงเรา',114]];
+  const pk=a=>{const t=a.reduce((s,x)=>s+x[1],0);let r=Math.random()*t;for(const x of a){r-=x[1];if(r<=0)return x[0];}return a[0][0];};
+  RAW=[];const s=new Date(2025,0,1);
+  for(let i=0;i<5000;i++){const d=new Date(s);d.setDate(s.getDate()+Math.floor(Math.random()*330));
+    RAW.push({d,raw:key(d),tn:(Math.random()<.5?'TH':'THT')+Math.random().toString(36).slice(2,13).toUpperCase(),
+    cust:pk(cu),per:pk(pe),st:pk(stt),sh:pk(sh),src:pk(sr),ts:'Daily'});}
+  RAW.sort((a,b)=>a.d-b.d);init();}
+
+function init(){
+  document.getElementById('dot').className='dot'+(LIVE?'':' off');
+  document.getElementById('srcTxt').textContent=LIVE?`เชื่อมต่อชีตแล้ว 已连接 · ${fmt(RAW.length)} รายการ`:'เชื่อมชีตไม่สำเร็จ 未连接 · แสดงข้อมูลตัวอย่าง';
+  document.getElementById('upd').textContent='อัปเดตล่าสุด 最后更新 '+new Date().toLocaleString('th-TH',{dateStyle:'medium',timeStyle:'short'});
+  ['fCust|cust','fPer|per','fSt|st','fSh|sh','fSrc|src'].forEach(x=>{const[i,f]=x.split('|');fill(i,f);});
+  keepSel('selCust',uniq('cust'));keepSel('selPer',uniq('per'));
+  const ms=uMonths();keepSel('mA',ms,ms[ms.length-2]||ms[0],mLab);keepSel('mB',ms,ms[ms.length-1],mLab);
+  const ds=RAW.map(r=>r.d);const mn=key(new Date(Math.min(...ds))),mx=key(new Date(Math.max(...ds)));
+  const F=document.getElementById('fFrom'),T=document.getElementById('fTo');
+  F.min=T.min=mn;F.max=T.max=mx;if(!F.value||F.value<mn)F.value=mn;if(!T.value||T.value>mx)T.value=mx;
+  apply();addShotBtns();
+}
+const uniq=f=>[...new Set(RAW.map(r=>r[f]))].filter(Boolean).sort((a,b)=>cnt(f,b)-cnt(f,a)||a.localeCompare(b,'th'));
+const cnt=(f,v)=>RAW.reduce((s,r)=>s+(r[f]===v?1:0),0);
+const uMonths=()=>[...new Set(RAW.map(r=>mKey(r.d)))].sort();
+function fill(id,f){const e=document.getElementById(id),v=e.value;
+  e.innerHTML='<option value="">ทั้งหมด 全部</option>'+uniq(f).map(x=>`<option value="${esc(x)}">${esc(x)} (${fmt(cnt(f,x))})</option>`).join('');
+  e.value=[...e.options].some(o=>o.value===v)?v:'';}
+function keepSel(id,arr,def,lab){const e=document.getElementById(id),v=e.value;
+  e.innerHTML=arr.map(x=>`<option value="${esc(x)}">${esc(lab?lab(x):x)}</option>`).join('');
+  e.value=[...e.options].some(o=>o.value===v)?v:(def||arr[0]||'');}
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function apply(){const f=v('fFrom'),t=v('fTo'),c=v('fCust'),p=v('fPer'),s=v('fSt'),sh=v('fSh'),sr=v('fSrc');
+  DATA=RAW.filter(r=>{const k=key(r.d);return(!f||k>=f)&&(!t||k<=t)&&(!c||r.cust===c)&&(!p||r.per===p)&&(!s||r.st===s)&&(!sh||r.sh===sh)&&(!sr||r.src===sr);});
+  pgNo=1;renderAll();}
+const v=id=>document.getElementById(id).value;
+function resetF(){['fCust','fPer','fSt','fSh','fSrc'].forEach(i=>document.getElementById(i).value='');
+  const ds=RAW.map(r=>r.d);document.getElementById('fFrom').value=key(new Date(Math.min(...ds)));
+  document.getElementById('fTo').value=key(new Date(Math.max(...ds)));apply();}
+
+function grp(a,f){const m={};a.forEach(r=>m[r[f]]=(m[r[f]]||0)+1);return Object.entries(m).sort((x,y)=>y[1]-x[1]);}
+function ts(a,g){const m={};a.forEach(r=>{const k=g==='d'?key(r.d):g==='w'?wKey(r.d):mKey(r.d);m[k]=(m[k]||0)+1;});
+  return Object.entries(m).sort((x,y)=>x[0].localeCompare(y[0]));}
+function chart(id,cfg){if(charts[id])charts[id].destroy();const el=document.getElementById(id);if(el)charts[id]=new Chart(el,cfg);}
+Chart.defaults.color='#8e9ac0';Chart.defaults.font.family="'IBM Plex Sans Thai','Noto Sans SC',sans-serif";Chart.defaults.font.size=11.5;
+Chart.defaults.animation=false;
+const GRID={grid:{color:'rgba(255,255,255,.06)'},border:{display:false}};
+const NOLEG={plugins:{legend:{display:false}}};
+function line(id,data,lab,labf){chart(id,{type:'line',data:{labels:data.map(x=>labf?labf(x[0]):x[0]),
+  datasets:[{label:lab,data:data.map(x=>x[1]),borderColor:'#5b8cff',
+  backgroundColor:c=>{const g=c.chart.ctx.createLinearGradient(0,0,0,290);g.addColorStop(0,'rgba(91,140,255,.35)');g.addColorStop(1,'rgba(91,140,255,0)');return g;},
+  fill:true,tension:.32,borderWidth:2.5,pointRadius:data.length>60?0:2.5,pointBackgroundColor:'#9b6bff'}]},
+  options:{maintainAspectRatio:false,...NOLEG,scales:{x:{...GRID,ticks:{maxTicksLimit:14}},y:{...GRID,beginAtZero:true}}}});}
+function doughnut(id,d){chart(id,{type:'doughnut',data:{labels:d.map(x=>x[0]),
+  datasets:[{data:d.map(x=>x[1]),backgroundColor:C,borderColor:'#0b1020',borderWidth:3}]},
+  options:{maintainAspectRatio:false,cutout:'62%',plugins:{legend:{position:'right',labels:{boxWidth:9,padding:9,usePointStyle:true}}}}});}
+function hbar(id,d){chart(id,{type:'bar',data:{labels:d.map(x=>x[0]),datasets:[{data:d.map(x=>x[1]),backgroundColor:C,borderRadius:6,barThickness:16}]},
+  options:{indexAxis:'y',maintainAspectRatio:false,...NOLEG,scales:{x:{...GRID,beginAtZero:true},y:{...GRID,ticks:{autoSkip:false}}}}});}
+function kpi(el,it){document.getElementById(el).innerHTML=it.map(i=>
+  `<div class="kpi"><div class="l">${i[0]}</div><div class="v">${i[1]}</div><div class="d">${i[2]||''}</div></div>`).join('');}
+const L=(th,zh)=>`${th}<span class="zh">${zh}</span>`;
+function rank(l,t){const mx=l[0]?l[0][1]:1;
+  return`<div class="scroll sm"><table><thead><tr><th>ชื่อ</th><th class="num">จำนวน</th><th class="num">สัดส่วน</th><th style="width:32%">กราฟ</th></tr></thead><tbody>`+
+  l.map(x=>`<tr><td>${esc(x[0])}</td><td class="num">${fmt(x[1])}</td><td class="num">${(x[1]/t*100).toFixed(1)}%</td>
+  <td><div class="bar"><i style="width:${x[1]/mx*100}%"></i></div></td></tr>`).join('')+'</tbody></table></div>';}
+const chg=(a,b)=>{if(!b)return'—';const p=(a-b)/b*100;
+  return`<span class="${p>=0?'up':'down'}">${p>=0?'▲':'▼'} ${Math.abs(p).toFixed(1)}%</span>`;};
+
+function renderAll(){ovR();cmpR();cuR();peR();stR();tbR();}
+
+function ovR(){const d=DATA,tot=d.length,days=new Set(d.map(r=>key(r.d))).size||1;
+  kpi('kOv',[[L('รายการทั้งหมด','总记录'),fmt(tot),'ตามตัวกรองที่เลือก'],
+   [L('เลขพัสดุไม่ซ้ำ','去重单号'),fmt(new Set(d.map(r=>r.tn)).size),'นับเฉพาะเลขไม่ซ้ำ'],
+   [L('กลุ่มลูกค้า','客户数'),fmt(new Set(d.map(r=>r.cust)).size),'ที่มีงานในช่วงนี้'],
+   [L('ผู้หา','查件人数'),fmt(new Set(d.map(r=>r.per)).size),'คนที่มีบันทึกงาน'],
+   [L('สถานะที่ใช้','状态种类'),fmt(new Set(d.map(r=>r.st)).size),'ประเภท'],
+   [L('เฉลี่ยต่อวัน','日均'),fmt(Math.round(tot/days)),'รายการ/วันทำงาน']]);
+  line('c_trend',ts(d,GRAN),'จำนวนรายการ',labOf);
+  doughnut('c_cust',grp(d,'cust').slice(0,9));hbar('c_st',grp(d,'st').slice(0,10));
+  hbar('c_per',grp(d,'per').slice(0,10));doughnut('c_sh',grp(d,'sh'));doughnut('c_src',grp(d,'src').slice(0,8));}
+
+function cmpR(){
+  const ms=[...new Set(DATA.map(r=>mKey(r.d)))].sort();
+  const shs=[...new Set(DATA.map(r=>r.sh))].sort((a,b)=>cnt('sh',b)-cnt('sh',a));
+  const M={};ms.forEach(m=>{M[m]={t:0,u:new Set()};shs.forEach(s=>M[m][s]=0);});
+  DATA.forEach(r=>{const m=mKey(r.d);if(!M[m])return;M[m].t++;M[m][r.sh]=(M[m][r.sh]||0)+1;M[m].u.add(r.tn);});
+  const last=ms[ms.length-1],prev=ms[ms.length-2];
+  const best=ms.slice().sort((a,b)=>M[b].t-M[a].t)[0];
+  const shTot=grp(DATA,'sh');
+  const dk={};DATA.forEach(r=>{const k=key(r.d);dk[k]=(dk[k]||0)+1;});
+  const peak=Object.entries(dk).sort((a,b)=>b[1]-a[1])[0];
+  kpi('kCmp',[
+   [L('เดือนล่าสุด','最新月份'),last?mLab(last):'-',last?fmt(M[last].t)+' รายการ':''],
+   [L('เทียบเดือนก่อน','环比'),last&&prev?chg(M[last].t,M[prev].t):'—',prev?'จาก '+fmt(M[prev].t)+' รายการ':''],
+   [L('เดือนที่งานสูงสุด','最高月份'),best?mLab(best):'-',best?fmt(M[best].t)+' รายการ':''],
+   [L('กะที่งานมากสุด','最忙班次'),shTot[0]?shTot[0][0]:'-',shTot[0]?fmt(shTot[0][1])+' รายการ':''],
+   [L('วันที่งานสูงสุด','最高单日'),peak?dLab(peak[0]):'-',peak?fmt(peak[1])+' รายการ':''],
+   [L('เฉลี่ยต่อเดือน','月均'),fmt(Math.round(DATA.length/(ms.length||1))),'รายการ']]);
+
+  chart('c_mShift',{type:'bar',data:{labels:ms.map(mLab),
+   datasets:shs.map((s,i)=>({label:s,data:ms.map(m=>M[m][s]||0),backgroundColor:C[i%C.length],borderRadius:5,stack:'a'}))},
+   options:{maintainAspectRatio:false,plugins:{legend:{labels:{boxWidth:9,usePointStyle:true}}},
+   scales:{x:{...GRID,stacked:true},y:{...GRID,stacked:true,beginAtZero:true}}}});
+
+  const mom=ms.map((m,i)=>i===0?0:(M[ms[i-1]].t?(M[m].t-M[ms[i-1]].t)/M[ms[i-1]].t*100:0));
+  chart('c_mom',{type:'bar',data:{labels:ms.map(mLab),datasets:[{data:mom.map(x=>+x.toFixed(1)),
+   backgroundColor:mom.map(x=>x>=0?'rgba(47,214,163,.75)':'rgba(255,107,122,.75)'),borderRadius:5}]},
+   options:{maintainAspectRatio:false,...NOLEG,scales:{x:GRID,y:{...GRID,ticks:{callback:v=>v+'%'}}}}});
+
+  chart('c_shPct',{type:'bar',data:{labels:ms.map(mLab),
+   datasets:shs.map((s,i)=>({label:s,data:ms.map(m=>M[m].t?+(M[m][s]/M[m].t*100).toFixed(1):0),
+   backgroundColor:C[i%C.length],borderRadius:4,stack:'a'}))},
+   options:{maintainAspectRatio:false,plugins:{legend:{labels:{boxWidth:9,usePointStyle:true}}},
+   scales:{x:{...GRID,stacked:true},y:{...GRID,stacked:true,max:100,ticks:{callback:v=>v+'%'}}}}});
+
+  const W={};shs.forEach(s=>W[s]=[0,0,0,0,0,0,0]);
+  DATA.forEach(r=>{if(W[r.sh])W[r.sh][r.d.getDay()]++;});
+  chart('c_dow',{type:'bar',data:{labels:[1,2,3,4,5,6,0].map(i=>DOW[i]),
+   datasets:shs.map((s,i)=>({label:s,data:[1,2,3,4,5,6,0].map(x=>W[s][x]),backgroundColor:C[i%C.length],borderRadius:5}))},
+   options:{maintainAspectRatio:false,plugins:{legend:{labels:{boxWidth:9,usePointStyle:true}}},scales:{x:GRID,y:{...GRID,beginAtZero:true}}}});
+
+  document.getElementById('tMonth').innerHTML='<table><thead><tr><th>เดือน</th>'+
+   shs.map(s=>`<th class="num">${esc(s)}</th>`).join('')+
+   '<th class="num">รวม</th><th class="num">เลขไม่ซ้ำ</th><th class="num">เทียบเดือนก่อน</th></tr></thead><tbody>'+
+   ms.map((m,i)=>`<tr><td><b>${mLab(m)}</b></td>`+shs.map(s=>`<td class="num">${fmt(M[m][s]||0)}</td>`).join('')+
+   `<td class="num"><b>${fmt(M[m].t)}</b></td><td class="num">${fmt(M[m].u.size)}</td>
+   <td class="num">${i?chg(M[m].t,M[ms[i-1]].t):'—'}</td></tr>`).join('')+
+   '</tbody><tfoot><tr><th>รวมทั้งหมด</th>'+shs.map(s=>`<th class="num">${fmt(DATA.filter(r=>r.sh===s).length)}</th>`).join('')+
+   `<th class="num">${fmt(DATA.length)}</th><th class="num">${fmt(new Set(DATA.map(r=>r.tn)).size)}</th><th></th></tr></tfoot></table>`;
+
+  let mx=1;ms.forEach(m=>shs.forEach(s=>mx=Math.max(mx,M[m][s]||0)));
+  document.getElementById('tHeat').innerHTML='<table><thead><tr><th>เดือน</th>'+
+   shs.map(s=>`<th class="num">${esc(s)}</th>`).join('')+'</tr></thead><tbody>'+
+   ms.map(m=>`<tr><td>${mLab(m)}</td>`+shs.map(s=>{const val=M[m][s]||0,a=.08+val/mx*.72;
+   return`<td class="hm" style="background:rgba(91,140,255,${a.toFixed(2)})">${fmt(val)}</td>`;}).join('')+'</tr>').join('')+'</tbody></table>';
+
+  vsR();
+  document.getElementById('tShCust').innerHTML=cross('sh','cust','กะ');
+  document.getElementById('tShPer').innerHTML=cross('sh','per','กะ');
+}
+function cross(rf,cf,lab){
+  const rs=[...new Set(DATA.map(r=>r[rf]))].sort((a,b)=>cnt(rf,b)-cnt(rf,a));
+  const cs=grp(DATA,cf).slice(0,7).map(x=>x[0]);
+  const T={};rs.forEach(r=>{T[r]={};cs.forEach(c=>T[r][c]=0);T[r]._=0;});
+  DATA.forEach(r=>{if(!T[r[rf]])return;T[r[rf]]._++;if(cs.includes(r[cf]))T[r[rf]][r[cf]]++;});
+  return'<table><thead><tr><th>'+lab+'</th>'+cs.map(c=>`<th class="num">${esc(c)}</th>`).join('')+
+   '<th class="num">รวม</th></tr></thead><tbody>'+
+   rs.map(r=>`<tr><td>${esc(r)}</td>`+cs.map(c=>`<td class="num">${fmt(T[r][c])}</td>`).join('')+
+   `<td class="num"><b>${fmt(T[r]._)}</b></td></tr>`).join('')+'</tbody></table>';}
+function vsR(){
+  const a=v('mA'),b=v('mB'),dim=v('mDim');
+  const A=DATA.filter(r=>mKey(r.d)===a),B=DATA.filter(r=>mKey(r.d)===b);
+  const ks=[...new Set([...A,...B].map(r=>r[dim]))];
+  const ca=k=>A.filter(r=>r[dim]===k).length,cb=k=>B.filter(r=>r[dim]===k).length;
+  ks.sort((x,y)=>(cb(y)+ca(y))-(cb(x)+ca(x)));
+  document.getElementById('tVs').innerHTML='<table><thead><tr><th>รายการ</th>'+
+   `<th class="num">${a?mLab(a):'-'}</th><th class="num">${b?mLab(b):'-'}</th>`+
+   '<th class="num">ส่วนต่าง</th><th class="num">เปลี่ยนแปลง</th></tr></thead><tbody>'+
+   ks.map(k=>{const x=ca(k),y=cb(k),d=y-x;
+   return`<tr><td>${esc(k)}</td><td class="num">${fmt(x)}</td><td class="num">${fmt(y)}</td>
+   <td class="num ${d>=0?'up':'down'}">${d>=0?'+':''}${fmt(d)}</td><td class="num">${chg(y,x)}</td></tr>`;}).join('')+
+   `</tbody><tfoot><tr><th>รวม</th><th class="num">${fmt(A.length)}</th><th class="num">${fmt(B.length)}</th>
+   <th class="num ${B.length-A.length>=0?'up':'down'}">${B.length-A.length>=0?'+':''}${fmt(B.length-A.length)}</th>
+   <th class="num">${chg(B.length,A.length)}</th></tr></tfoot></table>`;}
+
+function cuR(){const c=v('selCust'),d=DATA.filter(r=>r.cust===c),tot=d.length;
+  kpi('kCu',[[L('ลูกค้า','客户'),esc(c||'-'),''],[L('จำนวนรายการ','记录数'),fmt(tot),'ในช่วงที่เลือก'],
+   [L('เลขพัสดุไม่ซ้ำ','去重单号'),fmt(new Set(d.map(r=>r.tn)).size),''],
+   [L('ผู้หาที่ดูแล','负责人数'),fmt(new Set(d.map(r=>r.per)).size),'คน'],
+   [L('สัดส่วนจากทั้งหมด','占总量'),DATA.length?(tot/DATA.length*100).toFixed(1)+'%':'0%','เทียบทุกลูกค้า']]);
+  line('c_cuTrend',ts(d,'m'),c,mLab);doughnut('c_cuSt',grp(d,'st').slice(0,9));hbar('c_cuPer',grp(d,'per').slice(0,10));
+  document.getElementById('cuTable').innerHTML=rank(grp(DATA,'cust'),DATA.length||1);}
+
+function peR(){const p=v('selPer'),d=DATA.filter(r=>r.per===p),tot=d.length,days=new Set(d.map(r=>key(r.d))).size||1;
+  kpi('kPe',[[L('ผู้หา','查件人'),esc(p||'-'),''],[L('จำนวนรายการ','记录数'),fmt(tot),'ในช่วงที่เลือก'],
+   [L('เลขพัสดุไม่ซ้ำ','去重单号'),fmt(new Set(d.map(r=>r.tn)).size),''],
+   [L('ลูกค้าที่ดูแล','负责客户'),fmt(new Set(d.map(r=>r.cust)).size),'กลุ่ม'],
+   [L('เฉลี่ยต่อวัน','日均'),fmt(Math.round(tot/days)),'รายการ'],
+   [L('สัดส่วนในทีม','团队占比'),DATA.length?(tot/DATA.length*100).toFixed(1)+'%':'0%','']]);
+  line('c_peTrend',ts(d,'m'),p,mLab);doughnut('c_peCust',grp(d,'cust').slice(0,9));hbar('c_peSt',grp(d,'st').slice(0,10));
+  document.getElementById('peTable').innerHTML=rank(grp(DATA,'per'),DATA.length||1);}
+
+function stR(){const g=grp(DATA,'st'),tot=DATA.length||1;
+  kpi('kSt',[[L('สถานะทั้งหมด','状态总数'),fmt(g.length),'ประเภท'],
+   [L('สถานะที่พบมากสุด','最多状态'),esc(g[0]?g[0][0]:'-'),g[0]?fmt(g[0][1])+' รายการ':''],
+   [L('สัดส่วนอันดับ 1','第一占比'),g[0]?(g[0][1]/tot*100).toFixed(1)+'%':'0%',''],
+   [L('สถานะที่พบน้อยกว่า 10 ครั้ง','低频状态'),fmt(g.filter(x=>x[1]<10).length),'ควรตรวจคำสะกดในชีต']]);
+  const top=g.slice(0,5).map(x=>x[0]),ms=[...new Set(DATA.map(r=>mKey(r.d)))].sort();
+  chart('c_stTrend',{type:'line',data:{labels:ms.map(mLab),datasets:top.map((s,i)=>({label:s,
+   data:ms.map(m=>DATA.filter(r=>mKey(r.d)===m&&r.st===s).length),borderColor:C[i],backgroundColor:C[i],
+   tension:.32,borderWidth:2,pointRadius:2,fill:false}))},
+   options:{maintainAspectRatio:false,plugins:{legend:{labels:{boxWidth:9,usePointStyle:true}}},scales:{x:GRID,y:{...GRID,beginAtZero:true}}}});
+  doughnut('c_stPie',g.slice(0,10));
+  document.getElementById('stTable').innerHTML='<div class="scroll"><table><thead><tr><th>สถานะ</th><th class="num">จำนวน</th><th class="num">สัดส่วน</th><th>ลูกค้าหลัก</th><th>ผู้หาหลัก</th><th style="width:18%">กราฟ</th></tr></thead><tbody>'+
+   g.map(x=>{const s=DATA.filter(r=>r.st===x[0]),c1=grp(s,'cust')[0],p1=grp(s,'per')[0];
+   return`<tr><td>${esc(x[0])}</td><td class="num">${fmt(x[1])}</td><td class="num">${(x[1]/tot*100).toFixed(2)}%</td>
+   <td><span class="tag">${esc(c1?c1[0]:'-')}</span></td><td><span class="tag g">${esc(p1?p1[0]:'-')}</span></td>
+   <td><div class="bar"><i style="width:${x[1]/g[0][1]*100}%"></i></div></td></tr>`;}).join('')+'</tbody></table></div>';}
+
+function tbR(){const q=document.getElementById('q').value.trim().toLowerCase();
+  const l=q?DATA.filter(r=>[r.tn,r.cust,r.per,r.st,r.sh,r.src,r.raw].join(' ').toLowerCase().includes(q)):DATA;
+  const pg=Math.max(1,Math.ceil(l.length/PER));if(pgNo>pg)pgNo=pg;
+  const rows=l.slice((pgNo-1)*PER,pgNo*PER);
+  document.getElementById('rows').innerHTML=rows.map(r=>`<tr>
+   <td>${r.d.toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'})}</td>
+   <td class="mono">${esc(r.tn)}</td><td><span class="tag">${esc(r.cust)}</span></td><td>${esc(r.per)}</td>
+   <td>${esc(r.st)}</td><td>${esc(r.sh)}</td><td>${esc(r.src)}</td><td>${esc(r.ts)}</td></tr>`).join('')
+   ||'<tr><td colspan="8" style="text-align:center;padding:26px;color:var(--mut)">ไม่พบข้อมูลตามเงื่อนไข</td></tr>';
+  document.getElementById('pgInfo').textContent=`แสดง ${fmt(rows.length)} จาก ${fmt(l.length)} รายการ · หน้า ${pgNo}/${pg}`;
+  window._l=l;}
+function page(n){pgNo=Math.max(1,pgNo+n);tbR();}
+function exportCsv(){const l=window._l||DATA;
+  const csv='\uFEFF'+['วันที่,เลขพัสดุ,ลูกค้า,ชื่อผู้หา,สถานะ,เวลา,รับเข้า,Timesheet']
+   .concat(l.map(r=>[key(r.d),r.tn,r.cust,r.per,r.st,r.sh,r.src,r.ts].map(x=>`"${String(x).replace(/"/g,'""')}"`).join(','))).join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download='minics_'+key(new Date())+'.csv';a.click();}
+
+/* ===== ดาวน์โหลด PNG 下载PNG ===== */
+function addShotBtns(){document.querySelectorAll('.card').forEach(c=>{
+  if(c.querySelector(':scope > .shot'))return;
+  const b=document.createElement('button');b.className='btn shot';b.textContent='PNG';
+  const t=c.querySelector('h3');const nm=t?t.childNodes[0].textContent.trim():'card';
+  b.onclick=e=>{e.stopPropagation();shot(c,nm);};c.appendChild(b);});}
+function stampOn(title){const s=document.getElementById('stamp');
+  s.innerHTML=`<b>MINI CS · ${esc(title)}</b><span class="zh">运营数据看板</span>
+  <div class="sub" style="margin-top:4px">ช่วงข้อมูล ${v('fFrom')} ถึง ${v('fTo')} · ${fmt(DATA.length)} รายการ · ออกรายงาน ${new Date().toLocaleString('th-TH',{dateStyle:'medium',timeStyle:'short'})}</div>`;}
+async function shot(el,name){
+  document.body.classList.add('shooting');
+  document.querySelectorAll('.shot').forEach(b=>b.style.visibility='hidden');
+  document.getElementById('pngPage').style.visibility='hidden';
+  await new Promise(r=>setTimeout(r,120));
+  try{const cv=await html2canvas(el,{backgroundColor:'#0b1020',scale:2,useCORS:true,windowWidth:document.documentElement.scrollWidth});
+    const a=document.createElement('a');a.href=cv.toDataURL('image/png');
+    a.download='MINICS_'+name.replace(/[\/\\:*?"<>|\s]+/g,'_')+'_'+key(new Date())+'.png';a.click();
+  }catch(e){alert('บันทึกภาพไม่สำเร็จ กรุณาลองใหม่');}
+  document.body.classList.remove('shooting');
+  document.querySelectorAll('.shot').forEach(b=>b.style.visibility='');
+  document.getElementById('pngPage').style.visibility='';}
+function shotPage(){const b=document.querySelector('nav button.on');
+  const sec=document.getElementById(b.dataset.t);const nm=(b.dataset.n||'page');
+  stampOn(b.childNodes[0].textContent.trim());
+  const box=document.createElement('div');box.style.cssText='background:#0b1020;padding:18px';
+  const st=document.getElementById('stamp'),ph=document.createElement('div');
+  sec.parentNode.insertBefore(box,sec);box.appendChild(st);box.appendChild(sec);
+  shot(box,nm).then(()=>{box.parentNode.insertBefore(sec,box);box.parentNode.insertBefore(st,box);box.remove();});}
+
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('nav button').forEach(x=>x.classList.remove('on'));b.classList.add('on');
+  ['ov','cmp','cu','pe','st','tb'].forEach(s=>document.getElementById(s).classList.add('hide'));
+  document.getElementById(b.dataset.t).classList.remove('hide');});
+document.querySelectorAll('#granBox button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#granBox button').forEach(x=>x.classList.remove('p'));
+  GRAN=b.dataset.g;b.classList.add('p');line('c_trend',ts(DATA,GRAN),'จำนวนรายการ',labOf);});
+document.querySelector('#granBox button').classList.add('p');
+['fFrom','fTo','fCust','fPer','fSt','fSh','fSrc'].forEach(i=>document.getElementById(i).onchange=apply);
+document.getElementById('selCust').onchange=cuR;
+document.getElementById('selPer').onchange=peR;
+['mA','mB','mDim'].forEach(i=>document.getElementById(i).onchange=vsR);
+document.getElementById('q').oninput=()=>{pgNo=1;tbR();};
+loadData();setInterval(()=>loadData(),REFRESH_MIN*60*1000);
+</script>
+</body>
+</html>
